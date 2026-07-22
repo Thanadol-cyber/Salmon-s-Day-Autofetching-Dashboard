@@ -487,7 +487,6 @@
                         <table class="min-w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-themeBlack text-white uppercase">
                                 <tr>
-                                    <th class="px-6 py-4 font-semibold text-themeOrange">สาขา</th>
                                     <th class="px-6 py-4 font-semibold text-themeOrange">วันที่เปิดบิล</th>
                                     <th class="px-6 py-4 font-semibold text-themeOrange">ยกเลิกโดย</th>
                                     <th class="px-6 py-4 font-semibold text-themeOrange">เวลาที่ยกเลิก</th>
@@ -496,15 +495,17 @@
                                     <th class="px-6 py-4 font-semibold text-center border-l border-gray-700">Cancel</th>
                                     <th class="px-6 py-4 font-semibold text-center border-l border-gray-700">Void</th>
                                     <th class="px-6 py-4 font-semibold text-right border-l border-gray-700 text-red-400">มูลค่า (บาท)</th>
+                                    <th class="px-6 py-4 font-semibold text-themeOrange border-l border-gray-700 text-center">สาขา</th>
                                 </tr>
                             </thead>
                             <tbody id="voidPivotTableBody" class="bg-white"></tbody>
                             <tfoot class="bg-gray-100 font-bold text-themeBlack border-t-[3px] border-themeBlack">
                                 <tr>
-                                    <td class="px-6 py-4 text-right uppercase" colspan="6">Grand Total</td>
+                                    <td class="px-6 py-4 text-right uppercase" colspan="5">Grand Total</td>
                                     <td class="px-6 py-4 text-center border-l border-gray-300" id="voidFootCancelTotal">0</td>
                                     <td class="px-6 py-4 text-center border-l border-gray-300" id="voidFootVoidTotal">0</td>
                                     <td class="px-6 py-4 text-right border-l border-gray-300 text-red-600" id="voidFootValueTotal">0.00</td>
+                                    <td class="px-6 py-4 border-l border-gray-300"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -2706,7 +2707,6 @@
                 if (isFirstOfDay) { trClass = "hover:bg-gray-50 transition-colors duration-150 border-b border-gray-200 border-t-[3px] border-t-themeOrange"; currentDate = item.date; }
                 
                 rowsHtml += `<tr class="${trClass}">`;
-                rowsHtml += `<td class="px-6 py-4 text-xs font-bold text-gray-600 whitespace-nowrap border-r border-gray-200">${item.branch}</td>`;
                 if (isFirstOfDay) { rowsHtml += `<td rowspan="${dateRowSpans[item.date]}" class="px-6 py-4 font-semibold text-themeOrange whitespace-nowrap bg-gray-50 border-r border-gray-200">${item.date}</td>`; }
                 
                 rowsHtml += `<td class="px-6 py-4 text-gray-700 whitespace-nowrap border-l border-gray-200">${item.person}</td>
@@ -2716,6 +2716,7 @@
                              <td class="px-6 py-4 text-center border-l border-gray-200">${item.cancel > 0 ? `<span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-bold">${item.cancel}</span>` : '<span class="text-gray-300">-</span>'}</td>
                              <td class="px-6 py-4 text-center border-l border-gray-200">${item.void > 0 ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-bold">${item.void}</span>` : '<span class="text-gray-300">-</span>'}</td>
                              <td class="px-6 py-4 text-right border-l border-gray-200 font-semibold text-red-500">${item.value > 0 ? item.value.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</td>
+                             <td class="px-6 py-4 text-xs font-bold text-gray-600 whitespace-nowrap border-l border-gray-200 text-center">${item.branch}</td>
                          </tr>`;
             });
 
@@ -2767,10 +2768,11 @@
 
                 const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Cancel and Void Report', { views: [{ showGridLines: false }] });
                 ws.columns = [
-                    { header: 'สาขา', key: 'branch', width: 20 }, { header: 'วันที่เปิดบิล', key: 'date', width: 15 },
-                    { header: 'ยกเลิกโดย', key: 'person', width: 25 }, { header: 'เวลาที่ยกเลิก', key: 'time', width: 15 },
-                    { header: 'ชื่อสินค้า', key: 'product', width: 35 }, { header: 'หมายเหตุ', key: 'remark', width: 30 },
-                    { header: 'Cancel', key: 'cancel', width: 10 }, { header: 'Void', key: 'void', width: 10 }, { header: 'มูลค่า (บาท)', key: 'value', width: 15 }
+                    { header: 'วันที่เปิดบิล', key: 'date', width: 15 }, { header: 'ยกเลิกโดย', key: 'person', width: 25 }, 
+                    { header: 'เวลาที่ยกเลิก', key: 'time', width: 15 }, { header: 'ชื่อสินค้า', key: 'product', width: 35 }, 
+                    { header: 'หมายเหตุ', key: 'remark', width: 30 }, { header: 'Cancel', key: 'cancel', width: 10 }, 
+                    { header: 'Void', key: 'void', width: 10 }, { header: 'มูลค่า (บาท)', key: 'value', width: 15 }, 
+                    { header: 'สาขา', key: 'branch', width: 20 }
                 ];
 
                 const headerRow = ws.getRow(1);
@@ -2795,7 +2797,7 @@
                 const sumRow = ws.addRow({ branch: 'Grand Total', date: '', person: '', time: '', product: '', remark: '', cancel: window.globalVoidTotals.cancel, void: window.globalVoidTotals.void, value: window.globalVoidTotals.value });
                 sumRow.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.font = { bold: true }; });
                 sumRow.getCell('value').numFmt = '#,##0.00'; sumRow.getCell('value').font = { color: { argb: 'FFDC2626' }, bold: true };
-                ws.mergeCells(`A${sumRow.number}:F${sumRow.number}`); sumRow.getCell(1).alignment = { horizontal: 'right' };
+                ws.mergeCells(`A${sumRow.number}:E${sumRow.number}`); sumRow.getCell(1).alignment = { horizontal: 'right' };
 
                 const buffer = await wb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
