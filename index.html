@@ -122,9 +122,9 @@
             </div>
             
             <!-- Global Branch Filter -->
-            <div class="ml-4 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 shadow-sm min-w-max hidden" id="globalBranchFilterContainer">
-                <label for="globalBranchSelect" class="mr-2 text-sm font-bold text-gray-700"><i class="fas fa-store text-orange-500 mr-1"></i> สาขา:</label>
-                <select id="globalBranchSelect" onchange="changeGlobalBranch(this.value)" class="bg-white border border-gray-300 rounded-md px-2 py-1 text-sm font-semibold text-gray-800 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 cursor-pointer min-w-[150px]">
+            <div class="ml-4 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 shadow-sm shrink-0 hidden" id="globalBranchFilterContainer">
+                <label for="globalBranchSelect" class="mr-2 text-sm font-bold text-gray-700 whitespace-nowrap"><i class="fas fa-store text-orange-500 mr-1"></i> สาขา:</label>
+                <select id="globalBranchSelect" onchange="changeGlobalBranch(this.value)" class="bg-white border border-gray-300 rounded-md px-2 py-1 text-sm font-semibold text-gray-800 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 cursor-pointer w-32 sm:w-48 md:w-64 truncate">
                     <option value="รวมทุกสาขา">รวมทุกสาขา</option>
                 </select>
             </div>
@@ -2815,7 +2815,7 @@
         window.processVoidData = processVoidData;
     </script>
 
-            <!-- ========================================================= -->
+    <!-- ========================================================= -->
     <!-- HOURLY REPORT JAVASCRIPT LOGIC (TAB 5)                     -->
     <!-- ========================================================= -->
     <script>
@@ -2902,7 +2902,7 @@
             finally { isHourlyProcessing = false; }
         }
 
-        function extractMonthFromFilename(filename) {
+        function extractHourlyMonthFromFilename(filename) {
             if (!filename) return "ไม่ระบุเดือน";
             const lowerName = filename.toLowerCase();
             const thMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -2922,7 +2922,7 @@
                 const workbook = XLSX.read(buffer, { type: 'array' });
                 if (!workbook.SheetNames || workbook.SheetNames.length === 0) return;
                 const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
-                let monthName = extractMonthFromFilename(filename);
+                let monthName = extractHourlyMonthFromFilename(filename);
                 window.allAvailableMonths.add(monthName);
                 if (!window.currentSelectedMonth) window.currentSelectedMonth = monthName;
 
