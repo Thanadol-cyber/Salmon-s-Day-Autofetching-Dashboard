@@ -487,6 +487,7 @@
                         <table class="min-w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-themeBlack text-white uppercase">
                                 <tr>
+                                    <th class="px-6 py-4 font-semibold text-themeOrange">สาขา</th>
                                     <th class="px-6 py-4 font-semibold text-themeOrange">วันที่เปิดบิล</th>
                                     <th class="px-6 py-4 font-semibold text-themeOrange">ยกเลิกโดย</th>
                                     <th class="px-6 py-4 font-semibold text-themeOrange">เวลาที่ยกเลิก</th>
@@ -495,17 +496,15 @@
                                     <th class="px-6 py-4 font-semibold text-center border-l border-gray-700">Cancel</th>
                                     <th class="px-6 py-4 font-semibold text-center border-l border-gray-700">Void</th>
                                     <th class="px-6 py-4 font-semibold text-right border-l border-gray-700 text-red-400">มูลค่า (บาท)</th>
-                                    <th class="px-6 py-4 font-semibold text-themeOrange border-l border-gray-700 text-center">สาขา</th>
                                 </tr>
                             </thead>
                             <tbody id="voidPivotTableBody" class="bg-white"></tbody>
                             <tfoot class="bg-gray-100 font-bold text-themeBlack border-t-[3px] border-themeBlack">
                                 <tr>
-                                    <td class="px-6 py-4 text-right uppercase" colspan="5">Grand Total</td>
+                                    <td class="px-6 py-4 text-right uppercase" colspan="6">Grand Total</td>
                                     <td class="px-6 py-4 text-center border-l border-gray-300" id="voidFootCancelTotal">0</td>
                                     <td class="px-6 py-4 text-center border-l border-gray-300" id="voidFootVoidTotal">0</td>
                                     <td class="px-6 py-4 text-right border-l border-gray-300 text-red-600" id="voidFootValueTotal">0.00</td>
-                                    <td class="px-6 py-4 border-l border-gray-300"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -2707,6 +2706,7 @@
                 if (isFirstOfDay) { trClass = "hover:bg-gray-50 transition-colors duration-150 border-b border-gray-200 border-t-[3px] border-t-themeOrange"; currentDate = item.date; }
                 
                 rowsHtml += `<tr class="${trClass}">`;
+                rowsHtml += `<td class="px-6 py-4 text-xs font-bold text-gray-600 whitespace-nowrap border-r border-gray-200">${item.branch}</td>`;
                 if (isFirstOfDay) { rowsHtml += `<td rowspan="${dateRowSpans[item.date]}" class="px-6 py-4 font-semibold text-themeOrange whitespace-nowrap bg-gray-50 border-r border-gray-200">${item.date}</td>`; }
                 
                 rowsHtml += `<td class="px-6 py-4 text-gray-700 whitespace-nowrap border-l border-gray-200">${item.person}</td>
@@ -2716,7 +2716,6 @@
                              <td class="px-6 py-4 text-center border-l border-gray-200">${item.cancel > 0 ? `<span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-bold">${item.cancel}</span>` : '<span class="text-gray-300">-</span>'}</td>
                              <td class="px-6 py-4 text-center border-l border-gray-200">${item.void > 0 ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-bold">${item.void}</span>` : '<span class="text-gray-300">-</span>'}</td>
                              <td class="px-6 py-4 text-right border-l border-gray-200 font-semibold text-red-500">${item.value > 0 ? item.value.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</td>
-                             <td class="px-6 py-4 text-xs font-bold text-gray-600 whitespace-nowrap border-l border-gray-200 text-center">${item.branch}</td>
                          </tr>`;
             });
 
@@ -2768,11 +2767,10 @@
 
                 const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Cancel and Void Report', { views: [{ showGridLines: false }] });
                 ws.columns = [
-                    { header: 'วันที่เปิดบิล', key: 'date', width: 15 }, { header: 'ยกเลิกโดย', key: 'person', width: 25 }, 
-                    { header: 'เวลาที่ยกเลิก', key: 'time', width: 15 }, { header: 'ชื่อสินค้า', key: 'product', width: 35 }, 
-                    { header: 'หมายเหตุ', key: 'remark', width: 30 }, { header: 'Cancel', key: 'cancel', width: 10 }, 
-                    { header: 'Void', key: 'void', width: 10 }, { header: 'มูลค่า (บาท)', key: 'value', width: 15 }, 
-                    { header: 'สาขา', key: 'branch', width: 20 }
+                    { header: 'สาขา', key: 'branch', width: 20 }, { header: 'วันที่เปิดบิล', key: 'date', width: 15 },
+                    { header: 'ยกเลิกโดย', key: 'person', width: 25 }, { header: 'เวลาที่ยกเลิก', key: 'time', width: 15 },
+                    { header: 'ชื่อสินค้า', key: 'product', width: 35 }, { header: 'หมายเหตุ', key: 'remark', width: 30 },
+                    { header: 'Cancel', key: 'cancel', width: 10 }, { header: 'Void', key: 'void', width: 10 }, { header: 'มูลค่า (บาท)', key: 'value', width: 15 }
                 ];
 
                 const headerRow = ws.getRow(1);
@@ -2797,7 +2795,7 @@
                 const sumRow = ws.addRow({ branch: 'Grand Total', date: '', person: '', time: '', product: '', remark: '', cancel: window.globalVoidTotals.cancel, void: window.globalVoidTotals.void, value: window.globalVoidTotals.value });
                 sumRow.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; c.font = { bold: true }; });
                 sumRow.getCell('value').numFmt = '#,##0.00'; sumRow.getCell('value').font = { color: { argb: 'FFDC2626' }, bold: true };
-                ws.mergeCells(`A${sumRow.number}:E${sumRow.number}`); sumRow.getCell(1).alignment = { horizontal: 'right' };
+                ws.mergeCells(`A${sumRow.number}:F${sumRow.number}`); sumRow.getCell(1).alignment = { horizontal: 'right' };
 
                 const buffer = await wb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
@@ -2831,65 +2829,6 @@
         window._hourlyForceFilterReset = true;
         window.allAvailableMonths = new Set();
         window.currentSelectedMonth = '';
-
-       // ----------------------------------------------------
-        // Helper: ฟังก์ชันแก้ปัญหาเวลาเปิดร้านข้ามวัน (Smart Shift Time)
-        // ----------------------------------------------------
-        function getSmartDisplayHours(trafficArray) {
-            let maxZeroLen = 0;
-            let maxZeroEndIdx = 0; 
-            
-            // 1. หาช่วงเวลาที่ยอดขายเป็น 0 ติดต่อกันยาวนานที่สุด
-            for (let start = 0; start < 24; start++) {
-                if (trafficArray[start] === 0) {
-                    let len = 0;
-                    let curr = start;
-                    while (len < 24 && trafficArray[curr] === 0) {
-                        len++;
-                        curr = (curr + 1) % 24;
-                    }
-                    if (len > maxZeroLen) {
-                        maxZeroLen = len;
-                        maxZeroEndIdx = curr;
-                    }
-                }
-            }
-
-            let startHourIdx = 0;
-            // 2. ถ้าร้านมีช่วงที่ไม่ได้ขายนานกว่า 4 ชั่วโมง ให้ถือว่าช่วงนั้นคือร้านปิด
-            if (maxZeroLen >= 4) {
-                startHourIdx = maxZeroEndIdx;
-            }
-
-            // --- แก้ไขตรงนี้: เพิ่มเวลาว่างก่อนเริ่ม 1 ชั่วโมง (Padding) ---
-            let paddedStartIdx = (startHourIdx - 1 + 24) % 24;
-
-            // 3. จัดเรียง Array ของเวลาและข้อมูลใหม่ โดยเริ่มจากเวลาก่อนเปิดร้าน 1 ชม.
-            let shiftedHoursList = [];
-            let shiftedTrafficData = [];
-            for (let i = 0; i < 24; i++) {
-                let idx = (paddedStartIdx + i) % 24;
-                shiftedHoursList.push(hoursList[idx]);
-                shiftedTrafficData.push(trafficArray[idx]);
-            }
-
-            // 4. หาชั่วโมงสุดท้ายที่มีการขาย
-            let gLast = 0;
-            let hasData = false;
-            shiftedTrafficData.forEach((val, idx) => { 
-                if (val > 0) { 
-                    hasData = true;
-                    if (idx > gLast) gLast = idx; 
-                } 
-            });
-
-            if (!hasData) return hoursList;
-
-            // เผื่อเวลาหลังเวลาขายล่าสุดอีก 1 ชม.
-            let gEndIdx = Math.min(23, gLast + 1);
-            
-            return shiftedHoursList.slice(0, gEndIdx + 1);
-        }
 
         // 1. เชื่อมโยงระบบสาขากับไฟล์หลัก
         window.addEventListener('branchChanged', () => {
@@ -2997,20 +2936,12 @@
                         rawData[i].forEach((col, idx) => {
                             if (!col) return;
                             let colName = col.toString().trim(), colNameLower = colName.toLowerCase().replace(/\s/g, '');
-                            
-                            if (colName === 'หมวดสินค้า') {
-                                catColIdx = idx;
-                            } else if ((colNameLower.includes('จำนวนการขาย') || colNameLower === 'qty') && !colNameLower.includes('ต้นทุน') && !colNameLower.includes('กำไร')) {
-                                qtyColIdx = idx;
-                            } else if ((colNameLower.includes('ยอดก่อนลด') || colNameLower.includes('ยอดรวม') || colNameLower === 'total') && !colNameLower.includes('กำไร')) {
-                                grossColIdx = idx;
-                            } else if ((colNameLower.includes('ส่วนลดสินค้า') || colNameLower.includes('ส่วนลด') || colNameLower === 'discount') && !colNameLower.includes('กำไร')) {
-                                discountColIdx = idx;
-                            } else if (colNameLower === 'สาขา' || colNameLower === 'branch') {
-                                branchColIdx = idx;
-                            } else if (hoursList.includes(colName)) {
-                                timeCols[colName] = idx;
-                            }
+                            if (colName === 'หมวดสินค้า') catColIdx = idx;
+                            if (colNameLower.includes('จำนวนการขาย') || colNameLower === 'qty') qtyColIdx = idx;
+                            if (colNameLower.includes('ยอดก่อนลด') || colNameLower.includes('ยอดรวม') || colNameLower === 'total') grossColIdx = idx;
+                            if (colNameLower.includes('ส่วนลดสินค้า') || colNameLower.includes('ส่วนลด') || colNameLower === 'discount') discountColIdx = idx;
+                            if (colNameLower.includes('สาขา') || colNameLower === 'branch') branchColIdx = idx;
+                            if (hoursList.includes(colName)) timeCols[colName] = idx;
                         });
                         break;
                     }
@@ -3081,17 +3012,20 @@
             let globalTrafficDataRaw = Array(24).fill(0);
             hourlyValidCategories.forEach(cat => { hoursList.forEach((hour, idx) => { globalTrafficDataRaw[idx] += hourlyAggregatedData[cat][hour]; }); });
 
-            // ใช้ฟังก์ชันใหม่เพื่อจัดเรียงเวลาและตัดช่วงที่ว่างออก
-            let globalDisplayHours = getSmartDisplayHours(globalTrafficDataRaw);
+            let gFirst = 23, gLast = 0;
+            globalTrafficDataRaw.forEach((val, idx) => { if (val > 0) { if (idx < gFirst) gFirst = idx; if (idx > gLast) gLast = idx; } });
+            let gStartIdx = Math.max(0, gFirst - 1), gEndIdx = Math.min(23, gLast + 1);
+            if (gFirst > gLast) { gStartIdx = 0; gEndIdx = 23; }
+            let globalDisplayHours = hoursList.slice(gStartIdx, gEndIdx + 1);
 
             let grandTotalValue = globalTrafficDataRaw.reduce((a, b) => a + b, 0);
-            let maxTraffic = -1, bestDisplayHour = '';
+            let maxTraffic = -1, bestDisplayHourIdx = 0;
             globalDisplayHours.forEach((hour) => { 
                 let originalIdx = hoursList.indexOf(hour);
-                if (globalTrafficDataRaw[originalIdx] > maxTraffic) { maxTraffic = globalTrafficDataRaw[originalIdx]; bestDisplayHour = hour; } 
+                if (globalTrafficDataRaw[originalIdx] > maxTraffic) { maxTraffic = globalTrafficDataRaw[originalIdx]; bestDisplayHourIdx = originalIdx; } 
             });
 
-            document.getElementById('cardGoldenHour').textContent = bestDisplayHour;
+            document.getElementById('cardGoldenHour').textContent = hoursList[bestDisplayHourIdx];
             document.getElementById('cardTopCat').textContent = hourlyValidCategories[0];
             document.getElementById('cardTopCat').title = hourlyValidCategories[0];
             document.getElementById('cardTotalValue').textContent = grandTotalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -3143,8 +3077,11 @@
             let trafficDataRaw = Array(24).fill(0);
             displayCategories.forEach(cat => { hoursList.forEach((hour, idx) => { trafficDataRaw[idx] += hourlyAggregatedData[cat][hour]; }); });
 
-            // ใช้ฟังก์ชันใหม่เพื่อจัดเรียงเวลาและตัดช่วงที่ว่างออก
-            let displayHours = getSmartDisplayHours(trafficDataRaw);
+            let firstIdx = 23, lastIdx = 0;
+            trafficDataRaw.forEach((val, idx) => { if (val > 0) { if (idx < firstIdx) firstIdx = idx; if (idx > lastIdx) lastIdx = idx; } });
+            let startIdx = Math.max(0, firstIdx - 1), endIdx = Math.min(23, lastIdx + 1);
+            if (firstIdx > lastIdx) { startIdx = 0; endIdx = 23; } 
+            let displayHours = hoursList.slice(startIdx, endIdx + 1);
             document.getElementById('heatmapTimeRangeInfo').textContent = `แสดงเวลา: ${displayHours[0]} - ${displayHours[displayHours.length-1]}`;
 
             let heatmapData = [];
