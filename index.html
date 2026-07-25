@@ -2938,12 +2938,20 @@
                         rawData[i].forEach((col, idx) => {
                             if (!col) return;
                             let colName = col.toString().trim(), colNameLower = colName.toLowerCase().replace(/\s/g, '');
-                            if (colName === 'หมวดสินค้า') catColIdx = idx;
-                            if (colNameLower.includes('จำนวนการขาย') || colNameLower === 'qty') qtyColIdx = idx;
-                            if (colNameLower.includes('ยอดก่อนลด') || colNameLower.includes('ยอดรวม') || colNameLower === 'total') grossColIdx = idx;
-                            if (colNameLower.includes('ส่วนลดสินค้า') || colNameLower.includes('ส่วนลด') || colNameLower === 'discount') discountColIdx = idx;
-                            if (colNameLower.includes('สาขา') || colNameLower === 'branch') branchColIdx = idx;
-                            if (hoursList.includes(colName)) timeCols[colName] = idx;
+                            
+                            if (colName === 'หมวดสินค้า') {
+                                catColIdx = idx;
+                            } else if ((colNameLower.includes('จำนวนการขาย') || colNameLower === 'qty') && !colNameLower.includes('ต้นทุน') && !colNameLower.includes('กำไร')) {
+                                qtyColIdx = idx;
+                            } else if ((colNameLower.includes('ยอดก่อนลด') || colNameLower.includes('ยอดรวม') || colNameLower === 'total') && !colNameLower.includes('กำไร')) {
+                                grossColIdx = idx;
+                            } else if ((colNameLower.includes('ส่วนลดสินค้า') || colNameLower.includes('ส่วนลด') || colNameLower === 'discount') && !colNameLower.includes('กำไร')) {
+                                discountColIdx = idx;
+                            } else if (colNameLower === 'สาขา' || colNameLower === 'branch') {
+                                branchColIdx = idx;
+                            } else if (hoursList.includes(colName)) {
+                                timeCols[colName] = idx;
+                            }
                         });
                         break;
                     }
