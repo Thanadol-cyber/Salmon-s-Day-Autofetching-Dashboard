@@ -2832,7 +2832,7 @@
         window.allAvailableMonths = new Set();
         window.currentSelectedMonth = '';
 
-        // ----------------------------------------------------
+       // ----------------------------------------------------
         // Helper: ฟังก์ชันแก้ปัญหาเวลาเปิดร้านข้ามวัน (Smart Shift Time)
         // ----------------------------------------------------
         function getSmartDisplayHours(trafficArray) {
@@ -2857,37 +2857,38 @@
 
             let startHourIdx = 0;
             // 2. ถ้าร้านมีช่วงที่ไม่ได้ขายนานกว่า 4 ชั่วโมง ให้ถือว่าช่วงนั้นคือร้านปิด
-            // และเวลาแรกที่มีการขายหลังจากนั้น คือเวลาเปิดร้าน
             if (maxZeroLen >= 4) {
                 startHourIdx = maxZeroEndIdx;
             }
 
-            // 3. จัดเรียง Array ของเวลาและข้อมูลใหม่ โดยเริ่มจากเวลาเปิดร้าน
+            // --- แก้ไขตรงนี้: เพิ่มเวลาว่างก่อนเริ่ม 1 ชั่วโมง (Padding) ---
+            let paddedStartIdx = (startHourIdx - 1 + 24) % 24;
+
+            // 3. จัดเรียง Array ของเวลาและข้อมูลใหม่ โดยเริ่มจากเวลาก่อนเปิดร้าน 1 ชม.
             let shiftedHoursList = [];
             let shiftedTrafficData = [];
             for (let i = 0; i < 24; i++) {
-                let idx = (startHourIdx + i) % 24;
+                let idx = (paddedStartIdx + i) % 24;
                 shiftedHoursList.push(hoursList[idx]);
                 shiftedTrafficData.push(trafficArray[idx]);
             }
 
-            // 4. ตัดช่วงหัว-ท้ายที่ไม่มีข้อมูลทิ้ง (เผื่อเวลาหน้า-หลัง 1 ชม.)
-            let gFirst = 23, gLast = 0;
+            // 4. หาชั่วโมงสุดท้ายที่มีการขาย
+            let gLast = 0;
             let hasData = false;
             shiftedTrafficData.forEach((val, idx) => { 
                 if (val > 0) { 
                     hasData = true;
-                    if (idx < gFirst) gFirst = idx; 
                     if (idx > gLast) gLast = idx; 
                 } 
             });
 
             if (!hasData) return hoursList;
 
-            let gStartIdx = Math.max(0, gFirst - 1);
+            // เผื่อเวลาหลังเวลาขายล่าสุดอีก 1 ชม.
             let gEndIdx = Math.min(23, gLast + 1);
             
-            return shiftedHoursList.slice(gStartIdx, gEndIdx + 1);
+            return shiftedHoursList.slice(0, gEndIdx + 1);
         }
 
         // 1. เชื่อมโยงระบบสาขากับไฟล์หลัก
