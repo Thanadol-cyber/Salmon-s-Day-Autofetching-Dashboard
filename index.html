@@ -2832,6 +2832,64 @@
         window.allAvailableMonths = new Set();
         window.currentSelectedMonth = '';
 
+        // ----------------------------------------------------
+        // Helper: ฟังก์ชันแก้ปัญหาเวลาเปิดร้านข้ามวัน (Smart Shift Time)
+        // ----------------------------------------------------
+        function getSmartDisplayHours(trafficArray) {
+            let maxZeroLen = 0;
+            let maxZeroEndIdx = 0; 
+            
+            // 1. หาช่วงเวลาที่ยอดขายเป็น 0 ติดต่อกันยาวนานที่สุด
+            for (let start = 0; start < 24; start++) {
+                if (trafficArray[start] === 0) {
+                    let len = 0;
+                    let curr = start;
+                    while (len < 24 && trafficArray[curr] === 0) {
+                        len++;
+                        curr = (curr + 1) % 24;
+                    }
+                    if (len > maxZeroLen) {
+                        maxZeroLen = len;
+                        maxZeroEndIdx = curr;
+                    }
+                }
+            }
+
+            let startHourIdx = 0;
+            // 2. ถ้าร้านมีช่วงที่ไม่ได้ขายนานกว่า 4 ชั่วโมง ให้ถือว่าช่วงนั้นคือร้านปิด
+            // และเวลาแรกที่มีการขายหลังจากนั้น คือเวลาเปิดร้าน
+            if (maxZeroLen >= 4) {
+                startHourIdx = maxZeroEndIdx;
+            }
+
+            // 3. จัดเรียง Array ของเวลาและข้อมูลใหม่ โดยเริ่มจากเวลาเปิดร้าน
+            let shiftedHoursList = [];
+            let shiftedTrafficData = [];
+            for (let i = 0; i < 24; i++) {
+                let idx = (startHourIdx + i) % 24;
+                shiftedHoursList.push(hoursList[idx]);
+                shiftedTrafficData.push(trafficArray[idx]);
+            }
+
+            // 4. ตัดช่วงหัว-ท้ายที่ไม่มีข้อมูลทิ้ง (เผื่อเวลาหน้า-หลัง 1 ชม.)
+            let gFirst = 23, gLast = 0;
+            let hasData = false;
+            shiftedTrafficData.forEach((val, idx) => { 
+                if (val > 0) { 
+                    hasData = true;
+                    if (idx < gFirst) gFirst = idx; 
+                    if (idx > gLast) gLast = idx; 
+                } 
+            });
+
+            if (!hasData) return hoursList;
+
+            let gStartIdx = Math.max(0, gFirst - 1);
+            let gEndIdx = Math.min(23, gLast + 1);
+            
+            return shiftedHoursList.slice(gStartIdx, gEndIdx + 1);
+        }
+
         // 1. เชื่อมโยงระบบสาขากับไฟล์หลัก
         window.addEventListener('branchChanged', () => {
             if (Object.keys(masterHourlyData).length > 0) { window._hourlyForceFilterReset = true; renderHourlyDashboard(); }
@@ -3022,20 +3080,17 @@
             let globalTrafficDataRaw = Array(24).fill(0);
             hourlyValidCategories.forEach(cat => { hoursList.forEach((hour, idx) => { globalTrafficDataRaw[idx] += hourlyAggregatedData[cat][hour]; }); });
 
-            let gFirst = 23, gLast = 0;
-            globalTrafficDataRaw.forEach((val, idx) => { if (val > 0) { if (idx < gFirst) gFirst = idx; if (idx > gLast) gLast = idx; } });
-            let gStartIdx = Math.max(0, gFirst - 1), gEndIdx = Math.min(23, gLast + 1);
-            if (gFirst > gLast) { gStartIdx = 0; gEndIdx = 23; }
-            let globalDisplayHours = hoursList.slice(gStartIdx, gEndIdx + 1);
+            // ใช้ฟังก์ชันใหม่เพื่อจัดเรียงเวลาและตัดช่วงที่ว่างออก
+            let globalDisplayHours = getSmartDisplayHours(globalTrafficDataRaw);
 
             let grandTotalValue = globalTrafficDataRaw.reduce((a, b) => a + b, 0);
-            let maxTraffic = -1, bestDisplayHourIdx = 0;
+            let maxTraffic = -1, bestDisplayHour = '';
             globalDisplayHours.forEach((hour) => { 
                 let originalIdx = hoursList.indexOf(hour);
-                if (globalTrafficDataRaw[originalIdx] > maxTraffic) { maxTraffic = globalTrafficDataRaw[originalIdx]; bestDisplayHourIdx = originalIdx; } 
+                if (globalTrafficDataRaw[originalIdx] > maxTraffic) { maxTraffic = globalTrafficDataRaw[originalIdx]; bestDisplayHour = hour; } 
             });
 
-            document.getElementById('cardGoldenHour').textContent = hoursList[bestDisplayHourIdx];
+            document.getElementById('cardGoldenHour').textContent = bestDisplayHour;
             document.getElementById('cardTopCat').textContent = hourlyValidCategories[0];
             document.getElementById('cardTopCat').title = hourlyValidCategories[0];
             document.getElementById('cardTotalValue').textContent = grandTotalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -3087,11 +3142,8 @@
             let trafficDataRaw = Array(24).fill(0);
             displayCategories.forEach(cat => { hoursList.forEach((hour, idx) => { trafficDataRaw[idx] += hourlyAggregatedData[cat][hour]; }); });
 
-            let firstIdx = 23, lastIdx = 0;
-            trafficDataRaw.forEach((val, idx) => { if (val > 0) { if (idx < firstIdx) firstIdx = idx; if (idx > lastIdx) lastIdx = idx; } });
-            let startIdx = Math.max(0, firstIdx - 1), endIdx = Math.min(23, lastIdx + 1);
-            if (firstIdx > lastIdx) { startIdx = 0; endIdx = 23; } 
-            let displayHours = hoursList.slice(startIdx, endIdx + 1);
+            // ใช้ฟังก์ชันใหม่เพื่อจัดเรียงเวลาและตัดช่วงที่ว่างออก
+            let displayHours = getSmartDisplayHours(trafficDataRaw);
             document.getElementById('heatmapTimeRangeInfo').textContent = `แสดงเวลา: ${displayHours[0]} - ${displayHours[displayHours.length-1]}`;
 
             let heatmapData = [];
