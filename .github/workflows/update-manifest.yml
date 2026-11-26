@@ -1,0 +1,157 @@
+name: Update Data Manifest & Compiled JSON
+
+on:
+  push:
+    paths:
+      - 'data/**'
+      - '!data/manifest.json'
+      - '!data/compiled.json'
+      - '.github/workflows/update-manifest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Excel readers
+        run: pip install --quiet openpyxl xlrd
+
+      - name: Generate data/manifest.json and data/compiled.json
+        run: |
+          python3 - << 'EOF'
+          import csv
+          import datetime
+          import json
+          from pathlib import Path
+          import openpyxl
+          import xlrd
+
+          data_dir = Path("data")
+          exts = {".csv", ".xlsx", ".xls"}
+          files = []
+          if data_dir.exists():
+              for p in sorted(data_dir.rglob("*")):
+                  if p.is_file() and not p.name.startswith(("~$", ".")) and p.suffix.lower() in exts:
+                      files.append(p)
+
+          def norm_cell(val):
+              if val is None:
+                  return ""
+              if isinstance(val, datetime.datetime):
+                  if val.hour == 0 and val.minute == 0 and val.second == 0:
+                      return val.strftime("%Y-%m-%d")
+                  return val.strftime("%Y-%m-%d %H:%M:%S")
+              if isinstance(val, datetime.date):
+                  return val.strftime("%Y-%m-%d")
+              if isinstance(val, datetime.time):
+                  if val.second == 0:
+                      return val.strftime("%H:%M")
+                  return val.strftime("%H:%M:%S")
+              if isinstance(val, float) and val.is_integer():
+                  return int(val)
+              return val
+
+          def read_csv_rows(path):
+              raw_bytes = path.read_bytes()
+              text = None
+              for enc in ("utf-8-sig", "utf-8", "cp874", "tis-620", "latin-1"):
+                  try:
+                      candidate = raw_bytes.decode(enc)
+                      if any(k in candidate for k in ("วันที่", "ชื่อสินค้า", "ยอด", "รายการ", "ชำระเงิน", "หมวด", "สาขา", "00:00")):
+                          text = candidate
+                          break
+                      if text is None:
+                          text = candidate
+                  except UnicodeDecodeError:
+                      continue
+              if text is None:
+                  text = raw_bytes.decode("utf-8", errors="replace")
+              return [row for row in csv.reader(text.splitlines())]
+
+          def read_xlsx_rows(path):
+              wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+              try:
+                  ws = wb.worksheets[0]
+                  return [[norm_cell(c) for c in row] for row in ws.iter_rows(values_only=True)]
+              finally:
+                  wb.close()
+
+          def read_xls_rows(path):
+              wb = xlrd.open_workbook(str(path))
+              sh = wb.sheet_by_index(0)
+              rows = []
+              for r in range(sh.nrows):
+                  row_vals = []
+                  for c in range(sh.ncols):
+                      cell = sh.cell(r, c)
+                      if cell.ctype == xlrd.XL_CELL_DATE:
+                          dt = xlrd.xldate_as_datetime(cell.value, wb.datemode)
+                          row_vals.append(norm_cell(dt))
+                      else:
+                          row_vals.append(norm_cell(cell.value))
+                  rows.append(row_vals)
+              return rows
+
+          compiled_items = []
+          for p in files:
+              suf = p.suffix.lower()
+              try:
+                  if suf == ".csv":
+                      rows = read_csv_rows(p)
+                  elif suf == ".xlsx":
+                      rows = read_xlsx_rows(p)
+                  elif suf == ".xls":
+                      rows = read_xls_rows(p)
+                  else:
+                      continue
+                  # Trim trailing empty rows to keep JSON compact
+                  while rows and all(c == "" for c in rows[-1]):
+                      rows.pop()
+                  compiled_items.append({
+                      "filePath": p.as_posix(),
+                      "rows": rows,
+                  })
+              except Exception as exc:
+                  print(f"Skipping {p}: {exc}")
+
+          now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+          manifest = {
+              "generatedAt": now_str,
+              "count": len(files),
+              "files": [p.as_posix() for p in files],
+          }
+          compiled = {
+              "generatedAt": now_str,
+              "count": len(compiled_items),
+              "items": compiled_items,
+          }
+
+          data_dir.mkdir(parents=True, exist_ok=True)
+          (data_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          (data_dir / "compiled.json").write_text(json.dumps(compiled, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+          print(f"Generated manifest.json ({len(files)} files) and compiled.json ({len(compiled_items)} items).")
+          EOF
+
+      - name: Commit and push manifest and compiled JSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/manifest.json data/compiled.json
+          if git diff --staged --quiet; then
+            echo "No changes to data/manifest.json or data/compiled.json"
+          else
+            git commit -m "chore: update data/manifest.json and compiled.json [skip ci]"
+            git push
+          fi
+
