@@ -839,81 +839,127 @@
             });
         }
 
+        window.getCompiledData = function() {
+            if (!window._compiledDataPromise) {
+                window._compiledDataPromise = fetch('./data/compiled.json?t=' + new Date().getTime(), { cache: 'no-store' })
+                    .then(res => res.ok ? res.json() : null)
+                    .then(data => (data && Array.isArray(data.items) && data.items.length > 0) ? data.items : null)
+                    .catch(() => null);
+            }
+            return window._compiledDataPromise;
+        };
+
+        window.getDataManifest = function() {
+            if (!window._dataManifestPromise) {
+                window._dataManifestPromise = fetch('./data/manifest.json?t=' + new Date().getTime(), { cache: 'no-store' })
+                    .then(res => res.ok ? res.json() : null)
+                    .then(data => (data && Array.isArray(data.files) && data.files.length > 0) ? data.files : null)
+                    .catch(() => null);
+            }
+            return window._dataManifestPromise;
+        };
+
         async function fetchDefaultData() {
             const overlay = document.getElementById('globalLoadingOverlay');
-            document.getElementById('loadingTitle').innerText = "กำลังค้นหาข้อมูลอัตโนมัติ...";
-            document.getElementById('loadingSub').innerText = "รอสักครู่ ระบบกำลังดึงฐานข้อมูล (ทยอยโหลดเพื่อป้องกันเซิร์ฟเวอร์บล็อก)...";
+            document.getElementById('loadingTitle').innerText = "กำลังโหลดข้อมูล...";
+            document.getElementById('loadingSub').innerText = "รอสักครู่ ระบบกำลังเตรียมแดชบอร์ดให้คุณ";
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
-
-            const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
-            const years = ['2024', '2025', '2026', '2027'];
-            const exts = ['.csv', '.xlsx']; 
-            const prefix = './data/'; 
-            const urlsToTry = [];
-            
-            const engTypes = ['sales', 'payment', 'category', 'void'];
-            const thTypes = ['ยอดขาย', 'การชำระเงิน', 'หมวดสินค้า', 'สถานะการสั่ง'];
-
-            engTypes.forEach(type => {
-                months.forEach(month => {
-                    exts.forEach(ext => urlsToTry.push(`${prefix}${type}-${month}${ext}`));
-                });
-            });
-
-            engTypes.forEach(type => {
-                months.forEach(month => {
-                    years.forEach(year => {
-                        exts.forEach(ext => urlsToTry.push(`${prefix}${type}-${month}-${year}${ext}`));
-                    });
-                });
-            });
-
-            thTypes.forEach(type => {
-                months.forEach(month => {
-                    exts.forEach(ext => urlsToTry.push(`${prefix}${type}-${month}${ext}`));
-                });
-            });
-
-            urlsToTry.push(`${prefix}ยอดขายสินค้าตามวัน.csv`, `${prefix}ยอดขายสินค้าตามวัน.xlsx`);
-            urlsToTry.push(`${prefix}รายงานสถานะการสั่งสินค้า.csv`, `${prefix}รายงานสถานะการสั่งสินค้า.xlsx`);
-            urlsToTry.push(`${prefix}รายงานสรุปยอดขายแยกตามวัน (1).csv`, `${prefix}รายงานสรุปยอดขายแยกตามวัน (1).xlsx`);
 
             let loadedMendori = 0, loadedCategory = 0, loadedVoid = 0;
 
             try {
-                const chunkSize = 40; 
-                const results = [];
-                
-                for (let i = 0; i < urlsToTry.length; i += chunkSize) {
-                    const chunkUrls = urlsToTry.slice(i, i + chunkSize);
-                    
-                    const fetchPromises = chunkUrls.map(filePath => {
-                        const cacheBuster = `?t=${new Date().getTime()}`; 
-                        return fetch(encodeURI(filePath) + cacheBuster, { cache: 'no-store' }).then(async (res) => {
-                            if (!res.ok) return null;
-                            const contentType = res.headers.get('content-type') || '';
-                            if (contentType.includes('text/html')) return null;
-                            const buffer = await res.arrayBuffer();
-                            return { filePath, buffer };
-                        }).catch(() => null);
-                    });
+                const compiledItems = await window.getCompiledData();
+                let preParsedList = [];
 
-                    const chunkResults = await Promise.all(fetchPromises);
-                    results.push(...chunkResults);
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                if (compiledItems) {
+                    preParsedList = compiledItems
+                        .filter(item => {
+                            const name = (item.filePath || '').split('/').pop().toLowerCase();
+                            return !name.startsWith('hour') && Array.isArray(item.rows) && item.rows.length > 0;
+                        })
+                        .map(item => ({ filePath: item.filePath, rawJson: item.rows }));
+                } else {
+                    const urlsToTry = [];
+                    const manifestFiles = await window.getDataManifest();
+
+                    if (manifestFiles) {
+                        manifestFiles.forEach(f => {
+                            const name = f.split('/').pop().toLowerCase();
+                            if (!name.startsWith('hour') && (name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls'))) {
+                                urlsToTry.push(f.startsWith('./') ? f : './' + f);
+                            }
+                        });
+                    } else {
+                        const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+                        const years = ['2024', '2025', '2026', '2027'];
+                        const exts = ['.csv', '.xlsx']; 
+                        const prefix = './data/'; 
+                        
+                        const engTypes = ['sales', 'payment', 'category', 'void'];
+                        const thTypes = ['ยอดขาย', 'การชำระเงิน', 'หมวดสินค้า', 'สถานะการสั่ง'];
+
+                        engTypes.forEach(type => {
+                            months.forEach(month => {
+                                exts.forEach(ext => urlsToTry.push(`${prefix}${type}-${month}${ext}`));
+                            });
+                        });
+
+                        engTypes.forEach(type => {
+                            months.forEach(month => {
+                                years.forEach(year => {
+                                    exts.forEach(ext => urlsToTry.push(`${prefix}${type}-${month}-${year}${ext}`));
+                                });
+                            });
+                        });
+
+                        thTypes.forEach(type => {
+                            months.forEach(month => {
+                                exts.forEach(ext => urlsToTry.push(`${prefix}${type}-${month}${ext}`));
+                            });
+                        });
+
+                        urlsToTry.push(`${prefix}ยอดขายสินค้าตามวัน.csv`, `${prefix}ยอดขายสินค้าตามวัน.xlsx`);
+                        urlsToTry.push(`${prefix}รายงานสถานะการสั่งสินค้า.csv`, `${prefix}รายงานสถานะการสั่งสินค้า.xlsx`);
+                        urlsToTry.push(`${prefix}รายงานสรุปยอดขายแยกตามวัน (1).csv`, `${prefix}รายงานสรุปยอดขายแยกตามวัน (1).xlsx`);
+                    }
+
+                    const chunkSize = 40; 
+                    const results = [];
+                    
+                    for (let i = 0; i < urlsToTry.length; i += chunkSize) {
+                        const chunkUrls = urlsToTry.slice(i, i + chunkSize);
+                        
+                        const fetchPromises = chunkUrls.map(filePath => {
+                            const cacheBuster = `?t=${new Date().getTime()}`; 
+                            return fetch(encodeURI(filePath) + cacheBuster, { cache: 'no-store' }).then(async (res) => {
+                                if (!res.ok) return null;
+                                const contentType = res.headers.get('content-type') || '';
+                                if (contentType.includes('text/html')) return null;
+                                const buffer = await res.arrayBuffer();
+                                return { filePath, buffer };
+                            }).catch(() => null);
+                        });
+
+                        const chunkResults = await Promise.all(fetchPromises);
+                        results.push(...chunkResults);
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+
+                    const validResults = results.filter(r => r !== null);
+                    for (const fileData of validResults) {
+                        try {
+                            const workbook = readWorkbookUniversal(fileData.buffer);
+                            if (!workbook || !workbook.Sheets || !workbook.SheetNames || workbook.SheetNames.length === 0) continue;
+                            const rawJson = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+                            preParsedList.push({ filePath: fileData.filePath, rawJson });
+                        } catch(e) {}
+                    }
                 }
 
-                const validResults = results.filter(r => r !== null);
-
-                for (const fileData of validResults) {
+                for (const fileData of preParsedList) {
                     try {
-                        const { filePath, buffer } = fileData;
-                        const workbook = readWorkbookUniversal(buffer);
-                        
-                        if (!workbook || !workbook.Sheets || !workbook.SheetNames || workbook.SheetNames.length === 0) continue;
-                        
-                        const rawJson = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+                        const { filePath, rawJson } = fileData;
                         const sampleStr = rawJson.slice(0, 20).map(r => r ? r.join('').toLowerCase() : '').join(' ').replace(/[\s\uFEFF\u200B]/g, '');
                         
                         const isVoid = filePath.toLowerCase().includes('void') || filePath.includes('สถานะสั่ง') || filePath.includes('สถานะการสั่ง') || (sampleStr.includes('ชื่อสินค้า') && (sampleStr.includes('สถานะ') || sampleStr.includes('status')));
@@ -1064,7 +1110,7 @@
         };
 
         window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => { fetchDefaultData(); }, 1200);
+            fetchDefaultData();
 
             const dropZone = document.getElementById('dropZone');
             const emptyState = document.getElementById('emptyState');
@@ -3017,6 +3063,12 @@
                 const workbook = XLSX.read(buffer, { type: 'array' });
                 if (!workbook.SheetNames || workbook.SheetNames.length === 0) return;
                 const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+                parseHourlyRowsData(rawData, filename);
+            } catch (error) { console.error("Hourly Parse Error:", error); }
+        }
+
+        function parseHourlyRowsData(rawData, filename = '') {
+            try {
                 let monthName = extractHourlyMonthFromFilename(filename);
                 window.allAvailableMonths.add(monthName);
                 if (!window.currentSelectedMonth) window.currentSelectedMonth = monthName;
@@ -3224,18 +3276,49 @@
 
         // 5. โหลดไฟล์อัตโนมัติ
         window.addEventListener('DOMContentLoaded', async () => {
-            const baseUrl = './data/hour-'; let successCount = 0; const currentYear = new Date().getFullYear();
-            for (let i = 1; i <= 12; i++) {
-                let monthStr = i.toString().padStart(2, '0');
-                let urlsToTry = [`${baseUrl}${monthStr}-2026.xlsx`, `${baseUrl}${monthStr}-${currentYear}.xlsx`, `${baseUrl}${monthStr}.xlsx`];
-                for (let fileUrl of urlsToTry) {
-                    try {
-                        const response = await fetch(fileUrl + '?t=' + new Date().getTime());
-                        if (response.ok) {
-                            parseHourlyExcelData(await response.arrayBuffer(), fileUrl.split('/').pop().split('?')[0]);
-                            successCount++; break;
+            let successCount = 0;
+            const compiledItems = (typeof window.getCompiledData === 'function') ? await window.getCompiledData() : null;
+
+            if (compiledItems) {
+                compiledItems.forEach(item => {
+                    const filename = (item.filePath || '').split('/').pop();
+                    if (filename.toLowerCase().startsWith('hour-') && Array.isArray(item.rows) && item.rows.length > 0) {
+                        parseHourlyRowsData(item.rows, filename);
+                        successCount++;
+                    }
+                });
+            } else {
+                const manifestFiles = (typeof window.getDataManifest === 'function') ? await window.getDataManifest() : null;
+                if (manifestFiles) {
+                    const hourFiles = manifestFiles.filter(f => {
+                        const name = f.split('/').pop().toLowerCase();
+                        return name.startsWith('hour-') && (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv'));
+                    }).map(f => f.startsWith('./') ? f : './' + f);
+
+                    await Promise.all(hourFiles.map(async (fileUrl) => {
+                        try {
+                            const response = await fetch(encodeURI(fileUrl) + '?t=' + new Date().getTime(), { cache: 'no-store' });
+                            if (response.ok) {
+                                parseHourlyExcelData(await response.arrayBuffer(), fileUrl.split('/').pop().split('?')[0]);
+                                successCount++;
+                            }
+                        } catch (e) {}
+                    }));
+                } else {
+                    const baseUrl = './data/hour-'; const currentYear = new Date().getFullYear();
+                    for (let i = 1; i <= 12; i++) {
+                        let monthStr = i.toString().padStart(2, '0');
+                        let urlsToTry = [`${baseUrl}${monthStr}-2026.xlsx`, `${baseUrl}${monthStr}-${currentYear}.xlsx`, `${baseUrl}${monthStr}.xlsx`];
+                        for (let fileUrl of urlsToTry) {
+                            try {
+                                const response = await fetch(fileUrl + '?t=' + new Date().getTime());
+                                if (response.ok) {
+                                    parseHourlyExcelData(await response.arrayBuffer(), fileUrl.split('/').pop().split('?')[0]);
+                                    successCount++; break;
+                                }
+                            } catch (e) {}
                         }
-                    } catch (e) {}
+                    }
                 }
             }
             if (successCount > 0) { window._hourlyForceFilterReset = true; updateHourlyDropdowns(); renderHourlyDashboard(); }
